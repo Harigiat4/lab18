@@ -1,73 +1,81 @@
 #include "MQTT.h"
-#include "oled-wing-adafruit.h"
 #include <blynk.h>
+#include "oled-wing-adafruit.h"
 
 SYSTEM_THREAD(ENABLED);
 
+double lat = 0.0;
+double longitude = 0.0;
+
+void callback(char *topic, byte *payload, unsigned int length);
+
 OledWingAdafruit display;
 
-float longitude;
-float latitude;
+SYSTEM_THREAD(ENABLED);
 
-WidgetMap myMap(V1);
-
-void callback(char* topic, byte* payload, unsigned int length);
+WidgetMap bMap(V0);
 
 MQTT client("lab.thewcl.com", 1883, callback);
 
-// to receive a message from mqtt
-void callback(char *topic, byte *payload, unsigned int length){
+// to recieve messages
+void callback(char *topic, byte *payload, unsigned int length)
+{
   char p[length + 1];
   memcpy(p, payload, length);
   p[length] = NULL;
   String s = p;
-  double value = s.toFloat();
-  String Topic = String(topic);
-  if(Topic == "aalongitude"){
-    longitude = value;
-  }
-  if(Topic == "aalatitude"){
-		latitude = value;
-  }
-  display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(WHITE);
-	display.setCursor(0,0);
-  display.print("longitude: ");
-  display.println(longitude);
-  display.print("latitude: ");
-  display.println(latitude);
-  display.display();
-  int index = 0;
-  myMap.location(index, latitude, longitude, "value");
+   Serial.println(p);
+  // Serial.println(value);
+  if ((String) topic == "NODERED2")
+    {
+     
+      lat = s.toFloat();
+      Serial.println(lat);
+      delay(1000);
+    }
+
+  if ((String) topic == "NODERED3")
+    {
+      longitude = s.toFloat();
+      Serial.println(longitude);
+      delay(1000);
+    }
 }
 
-// setup() runs once, when the device is first turned on.
-void setup() {
-  // Put initialization like pinMode and begin functions here.
-
+void setup()
+{
+  Blynk.begin("rPvjevy8R-9N6CXt0GOrIu2meSjpbP1C", IPAddress(167, 172, 234, 162), 9090); // in setup
   Serial.begin(9600);
   display.setup();
-	display.clearDisplay();
-	display.display();
-
-  Blynk.begin("0jUcpcb8kvBG_QIlVN5fM965ZuXUz7Ag", IPAddress(167, 172, 234, 162), 9090);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
 }
 
-// loop() runs over and over again, as quickly as it can execute.
-void loop() {
-  Blynk.run();
+void loop()
+{
+  client.loop();
   display.loop();
-  if (client.isConnected()) {
-    client.loop();
-  } else {
-    client.connect(System.deviceID());
-  }
-  // subscribe to ksa topic in mqtt
-  client.subscribe("aalongitude");
-  client.subscribe("aalatitude");
-  client.publish("noodered","send request");
-  delay(10000);
-  // The core of your code will likely live here.
+  Blynk.run();
 
-}
+  bMap.location(1, lat, longitude, "Point");
+
+  if (client.isConnected())
+  {
+    client.subscribe("NODERED2"); // lat
+    client.subscribe("NODERED3"); // long
+  }
+  else
+  {
+    client.connect(System.deviceID());
+    client.subscribe("NODERED2"); // lat
+    client.subscribe("NODERED3"); // long
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println(lat);
+  display.println(longitude);
+  display.display();
